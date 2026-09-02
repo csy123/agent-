@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二手车价格预测系统 - CatBoost 增强版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        .header h1 { color: #2c3e50; font-size: 28px; margin-bottom: 10px; }
+        .header p { color: #7f8c8d; font-size: 14px; }
+        .header .badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #00b4d8, #0096c7);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        .main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .main { grid-template-columns: 1fr; } }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            color: #34495e;
+            font-size: 14px;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00b4d8;
+            box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(90deg, #00b4d8, #0077b6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 180, 216, 0.3); }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .result-box {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .price-display {
+            font-size: 42px;
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .price-range {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #00b4d8; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error { color: #e74c3c; background: #fadbd8; padding: 12px; border-radius: 6px; margin-top: 15px; }
+        .info-box {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+        .stat-item { text-align: center; padding: 12px; background: #f8f9fa; border-radius: 8px; }
+        .stat-item .value { font-size: 18px; color: #2c3e50; font-weight: bold; }
+        .stat-item .label { font-size: 12px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>二手车价格预测系统</h1>
+        <p>基于 CatBoost 增强特征工程（power 变换、日期特征、交互特征、派生数值特征）</p>
+        <span class="badge">验证集 MAE: {{ test_mae | round(2) }}</span>
+    </div>
+
+    <div class="main">
+        <div class="card">
+            <h2>输入车辆信息</h2>
+            <form id="predictForm">
+                <div class="form-group">
+                    <label>品牌 (brand, 0-39)</label>
+                    <input type="number" name="brand" id="brand" value="0" min="0" max="39" required>
+                </div>
+                <div class="form-group">
+                    <label>车型编码 (model)</label>
+                    <input type="number" name="model" id="model" value="30" min="0" max="247" required>
+                </div>
+                <div class="form-group">
+                    <label>车身类型 (bodyType)</label>
+                    <select name="bodyType" id="bodyType">
+                        <option value="0">豪华轿车</option>
+                        <option value="1" selected>微型车</option>
+                        <option value="2">厢型车</option>
+                        <option value="3">大巴车</option>
+                        <option value="4">跑车</option>
+                        <option value="5">皮卡</option>
+                        <option value="6">微型客车</option>
+                        <option value="7">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>燃油类型 (fuelType)</label>
+                    <select name="fuelType" id="fuelType">
+                        <option value="0" selected>汽油</option>
+                        <option value="1">柴油</option>
+                        <option value="2">液化石油气</option>
+                        <option value="3">天然气</option>
+                        <option value="4">混合动力</option>
+                        <option value="5">电动</option>
+                        <option value="6">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>变速箱 (gearbox)</label>
+                    <select name="gearbox" id="gearbox">
+                        <option value="0" selected>手动</option>
+                        <option value="1">自动</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>发动机功率 (power, 0-600)</label>
+                    <input type="number" name="power" id="power" value="110" min="0" max="600" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label>行驶里程 (kilometer, 万km, 0-15)</label>
+                    <input type="number" name="kilometer" id="kilometer" value="12" min="0" max="15" step="0.5" required>
+                </div>
+                <div class="form-group">
+                    <label>地区编码 (regionCode, 0-9999)</label>
+                    <input type="number" name="regionCode" id="regionCode" value="1000" min="0" max="9999" required>
+                </div>
+                <div class="form-group">
+                    <label>注册日期 (regDate)</label>
+                    <input type="date" name="regDate" id="regDate" value="2010-01-01" required>
+                </div>
+                <div class="form-group">
+                    <label>上架日期 (creatDate)</label>
+                    <input type="date" name="creatDate" id="creatDate" value="2016-03-01" required>
+                </div>
+                <button type="submit" class="btn" id="submitBtn">预测价格</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>预测结果</h2>
+            <div class="result-box" id="resultBox">
+                <p style="color:#7f8c8d;">填写车辆信息后点击"预测价格"</p>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="value">{{ test_mae | round(0) }}</div>
+                    <div class="label">模型 MAE</div>
+                </div>
+                <div class="stat-item">
+                    <div class="value">60</div>
+                    <div class="label">特征数量</div>
+                </div>
+                <div class="stat-item">
+                    <div class="value">5000</div>
+                    <div class="label">训练轮数</div>
+                </div>
+            </div>
+            <div class="info-box">
+                模型基于 15 万条真实二手车交易数据训练，使用 CatBoost + 增强特征工程，验证集 MAE 约 {{ test_mae | round(0) }} 元
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById("predictForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const submitBtn = document.getElementById("submitBtn");
+    const resultBox = document.getElementById("resultBox");
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="loading"></span> 预测中...';
+    resultBox.innerHTML = '<div class="loading" style="margin: 20px auto;"></div>';
+
+    const formData = {
+        brand: document.getElementById("brand").value,
+        model: document.getElementById("model").value,
+        bodyType: document.getElementById("bodyType").value,
+        fuelType: document.getElementById("fuelType").value,
+        gearbox: document.getElementById("gearbox").value,
+        power: document.getElementById("power").value,
+        kilometer: document.getElementById("kilometer").value,
+        regionCode: document.getElementById("regionCode").value,
+        regDate: document.getElementById("regDate").value,
+        creatDate: document.getElementById("creatDate").value,
+    };
+
+    try {
+        const response = await fetch("/api/predict", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(formData)
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            resultBox.innerHTML = `
+                <p style="color:#7f8c8d; font-size:14px;">预测价格（元）</p>
+                <div class="price-display">¥ ${data.price.toLocaleString()}</div>
+                <div class="price-range">
+                    预测区间: ¥${data.price_low.toLocaleString()} ~ ¥${data.price_high.toLocaleString()}
+                </div>
+                <div class="price-range" style="margin-top:10px;">
+                    模型 MAE: ¥${data.mae.toLocaleString()} | 使用特征: ${data.features_used} 个
+                </div>
+            `;
+        } else {
+            resultBox.innerHTML = `<div class="error">预测失败: ${data.error}</div>`;
+        }
+    } catch (err) {
+        resultBox.innerHTML = `<div class="error">网络错误: ${err.message}</div>`;
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "预测价格";
+    }
+});
+</script>
+</body>
+</html>
