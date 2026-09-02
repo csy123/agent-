@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        canvas {
+            border: 1px solid #000;
+            background: linear-gradient(45deg, #f0f0f0, #ffffff);
+            max-width: 100%;    /* 添加响应式限制 */
+            aspect-ratio: 3/2;  /* 保持画布原始比例 600x400 */
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .info { 
+            margin-top: 20px;
+            font-family: Arial;
+            color: #666;
+            text-align: center;
+            padding: 0 10px;
+        }
+        .restart-btn {
+            margin-top: 15px;
+            padding: 8px 20px;
+            font-family: Arial;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 20px;
+        }
+        .restart-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div class="info">红色小球在三角形区域内持续反弹运动</div>
+<button onclick="restart()" class="restart-btn">重新开始</button>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 初始化画布尺寸
+canvas.width = 600;
+canvas.height = 400;
+
+// 小球属性
+const ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 10,
+    dx: 0,
+    dy: 0,
+    gravity: 0.5,      // 重力加速度
+    restitution: 0.9,  // 增大弹性系数到90%
+    friction: 0.95     // 摩擦力系数
+};
+
+// 生成随机初始速度（极坐标方式）
+function restart() {
+    // 重置小球位置和速度
+    ball.x = canvas.width / 2;
+    ball.y = canvas.height / 2;
+    
+    // 重新生成随机速度
+    const angle = (Math.random() * 120 - 60) * Math.PI / 180;
+    const speed = Math.random() * 15 + 10;
+    ball.dx = Math.cos(angle) * speed;
+    ball.dy = Math.sin(angle) * speed * 1.2;
+
+    // 重设物理参数（可根据需要调整）
+    ball.restitution = 0.9;
+    ball.friction = 0.95;
+}
+
+// 三角形顶点（顶点、左底点、右底点）
+const topPoint = { x: canvas.width/2, y: 20 };
+const leftPoint = { x: 50, y: canvas.height - 20 };
+const rightPoint = { x: canvas.width - 50, y: canvas.height - 20 };
+
+function drawTriangle() {
+    ctx.beginPath();
+    ctx.moveTo(topPoint.x, topPoint.y);
+    ctx.lineTo(leftPoint.x, leftPoint.y);
+    ctx.lineTo(rightPoint.x, rightPoint.y);
+    ctx.closePath();
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+function drawBall() {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI*2);
+    
+    const gradient = ctx.createRadialGradient(
+        ball.x - 3, ball.y - 3, 1,
+        ball.x, ball.y, ball.radius
+    );
+    gradient.addColorStop(0, '#ff7777');
+    gradient.addColorStop(1, '#cc0000');
+    
+    ctx.fillStyle = gradient;
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    ctx.fill();
+}
+
+function checkCollisionWithEdge(A, B) {
+    const edge = { x: B.x - A.x, y: B.y - A.y };
+    const edgeLength = Math.hypot(edge.x, edge.y);
+    
+    const toBall = { x: ball.x - A.x, y: ball.y - A.y };
+    const t = Math.max(0, Math.min(1, (toBall.x * edge.x + toBall.y * edge.y) / (edgeLength ** 2)));
+    
+    const nearest = { 
+        x: A.x + t * edge.x,
+        y: A.y + t * edge.y
+    };
+    
+    const distance = Math.hypot(ball.x - nearest.x, ball.y - nearest.y);
+    
+    if (distance < ball.radius) {
+        // 计算法向量
+        const normal = { 
+            x: edge.y / edgeLength,
+            y: -edge.x / edgeLength
+        };
+
+        // 速度投影计算
+        const speedProjection = ball.dx * normal.x + ball.dy * normal.y;
+        
+        if (speedProjection < 0) {
+            // 计算切线方向（沿边方向）的投影
+            const tangent = { x: edge.x / edgeLength, y: edge.y / edgeLength };
+            const tangentSpeed = ball.dx * tangent.x + ball.dy * tangent.y;
+
+            // 反弹计算：法向速度恢复 + 切线摩擦力
+            const bounce = speedProjection * ball.restitution;
+            
+            // 更新速度矢量
+            ball.dx = tangent.x * tangentSpeed * ball.friction - normal.x * bounce;
+            ball.dy = tangent.y * tangentSpeed * ball.friction - normal.y * bounce;
+
+            // 特殊处理底边（防止完全失去水平速度）
+            if (A === leftPoint && B === rightPoint) { // 底边
+                ball.dx *= 1.02; // 增加微小水平补偿
+            }
+
+            // 位置修正：防止穿模
+            const overlap = ball.radius - distance;
+            ball.x += normal.x * overlap;
+            ball.y += normal.y * overlap;
+        }
+        return true; // 发生碰撞
+    }
+    return false; // 未发生碰撞
+}
+
+function update() {
+    // 检测与三条边的碰撞
+    let onGround = false; // 是否接触支撑面
+    
+    // 碰撞前备份速度
+    const prevDX = ball.dx;
+    const prevDY = ball.dy;
+
+    // 处理三条边的碰撞检测
+    checkCollisionWithEdge(topPoint, leftPoint);
+    checkCollisionWithEdge(leftPoint, rightPoint);
+    onGround = checkCollisionWithEdge(rightPoint, topPoint) || onGround;
+
+    // 如果没有碰撞到任何边，应用重力
+    if (!onGround) {
+        ball.dy += ball.gravity;
+    }
+
+    // 应用空气阻力时保持更多水平动量
+    ball.dx *= 0.98;     // 降低水平摩擦
+    ball.dy *= ball.friction;
+
+    // 速度过小时停止运动
+    if (Math.abs(ball.dx) < 0.1) ball.dx = 0;
+    if (Math.abs(ball.dy) < 0.1) ball.dy = 0;
+
+    // 更新小球位置
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+}
+
+function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    update();
+    drawTriangle();
+    drawBall();
+    requestAnimationFrame(animate);
+}
+
+restart(); // 初始启动
+animate();
+</script>
+</body>
+</html> 

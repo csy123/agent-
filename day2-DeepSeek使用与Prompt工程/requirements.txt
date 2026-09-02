@@ -1,0 +1,2 @@
+dashscope==1.22.1
+modelscope==1.25.0
