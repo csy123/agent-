@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>香港疫情实时监控大屏</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 顶部标题 -->
+    <header class="header">
+        <h1>香港各区疫情实时监控大屏</h1>
+        <div class="datetime" id="datetime"></div>
+    </header>
+
+    <!-- 核心指标卡片 -->
+    <section class="summary-cards">
+        <div class="card card-confirmed">
+            <div class="card-icon">🦠</div>
+            <div class="card-content">
+                <div class="card-title">累计确诊</div>
+                <div class="card-value" id="total-confirmed">--</div>
+                <div class="card-sub">
+                    今日新增 <span id="new-confirmed">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-active">
+            <div class="card-icon">⚠️</div>
+            <div class="card-content">
+                <div class="card-title">现存确诊</div>
+                <div class="card-value" id="active-cases">--</div>
+                <div class="card-sub">当前活跃病例</div>
+            </div>
+        </div>
+
+        <div class="card card-recovered">
+            <div class="card-icon">💚</div>
+            <div class="card-content">
+                <div class="card-title">累计康复</div>
+                <div class="card-value" id="total-recovered">--</div>
+                <div class="card-sub">
+                    今日新增 <span id="new-recovered">--</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-deaths">
+            <div class="card-icon">🕊️</div>
+            <div class="card-content">
+                <div class="card-title">累计死亡</div>
+                <div class="card-value" id="total-deaths">--</div>
+                <div class="card-sub">
+                    今日新增 <span id="new-deaths">--</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 图表区域 -->
+    <section class="charts">
+        <!-- 左侧：趋势图 -->
+        <div class="chart-panel chart-trend">
+            <div class="panel-header">
+                <h3>📈 疫情趋势分析（近30天）</h3>
+            </div>
+            <div class="chart-body" id="trend-chart"></div>
+        </div>
+
+        <!-- 右侧：风险等级分布 -->
+        <div class="chart-panel chart-risk">
+            <div class="panel-header">
+                <h3>🎯 区域风险等级分布</h3>
+            </div>
+            <div class="chart-body" id="risk-chart"></div>
+        </div>
+
+        <!-- 左下：TOP5地区 -->
+        <div class="chart-panel chart-top">
+            <div class="panel-header">
+                <h3>🔥 累计确诊TOP5地区</h3>
+            </div>
+            <div class="chart-body" id="top-chart"></div>
+        </div>
+
+        <!-- 右下：各区详细数据 -->
+        <div class="chart-panel chart-districts">
+            <div class="panel-header">
+                <h3>📊 各区疫情详情</h3>
+            </div>
+            <div class="chart-body">
+                <table id="district-table">
+                    <thead>
+                        <tr>
+                            <th>地区</th>
+                            <th>累计确诊</th>
+                            <th>现存</th>
+                            <th>康复率</th>
+                            <th>发病率/10万人</th>
+                            <th>风险等级</th>
+                        </tr>
+                    </thead>
+                    <tbody id="district-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 底部状态栏 -->
+    <footer class="footer">
+        <span>数据更新时间：<span id="update-time">--</span></span>
+        <span class="divider">|</span>
+        <span>数据源：香港各区疫情数据_20250322.xlsx</span>
+        <span class="divider">|</span>
+        <span>自动刷新：30秒</span>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

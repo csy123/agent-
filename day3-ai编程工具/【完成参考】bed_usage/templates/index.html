@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>医院床位使用率可视化大屏</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <!-- 顶部标题栏 -->
+    <header class="header">
+        <h1>🏥 香港医院床位使用率可视化大屏</h1>
+        <div class="datetime" id="datetime"></div>
+    </header>
+
+    <!-- KPI 指标卡 -->
+    <section class="kpi-cards">
+        <div class="kpi-card">
+            <div class="kpi-icon">🛏️</div>
+            <div class="kpi-content">
+                <div class="kpi-label">总床位数</div>
+                <div class="kpi-value" id="kpi-total">--</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">📈</div>
+            <div class="kpi-content">
+                <div class="kpi-label">整体使用率</div>
+                <div class="kpi-value" id="kpi-rate">--</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">🔴</div>
+            <div class="kpi-content">
+                <div class="kpi-label">已占用</div>
+                <div class="kpi-value" id="kpi-occupied">--</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">🟢</div>
+            <div class="kpi-content">
+                <div class="kpi-label">空闲床位</div>
+                <div class="kpi-value" id="kpi-available">--</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon">⚠️</div>
+            <div class="kpi-content">
+                <div class="kpi-label">满床病房</div>
+                <div class="kpi-value" id="kpi-full">--</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 图表区：2列布局 -->
+    <section class="chart-row">
+        <!-- 左上：各医院使用率排名 -->
+        <div class="chart-panel">
+            <div class="panel-title">📊 各医院病床使用率排名</div>
+            <div class="chart-body" id="chart-hospital"></div>
+        </div>
+        <!-- 右上：各科室病床分布 -->
+        <div class="chart-panel">
+            <div class="panel-title">🏥 各科室病床分布</div>
+            <div class="chart-body" id="chart-department"></div>
+        </div>
+    </section>
+
+    <section class="chart-row">
+        <!-- 左下：空闲床位统计 -->
+        <div class="chart-panel">
+            <div class="panel-title">🟢 空闲病床统计</div>
+            <div class="chart-body" id="chart-available"></div>
+        </div>
+        <!-- 右下：异常情况统计 -->
+        <div class="chart-panel">
+            <div class="panel-title">⚠️ 异常情况统计</div>
+            <div class="chart-body" id="chart-abnormal"></div>
+        </div>
+    </section>
+
+    <!-- 底部状态栏 -->
+    <footer class="footer">
+        数据源：hospital_bed_usage_data.xlsx | 数据更新时间：<span id="update-date">--</span> | 每 30 秒自动刷新
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
