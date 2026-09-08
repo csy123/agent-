@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>酒店推荐系统 - 代码逻辑梳理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', sans-serif;
+    background: #f5f7fa;
+    color: #2d3748;
+    line-height: 1.7;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+  header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 60px 40px;
+    border-radius: 16px;
+    margin-bottom: 40px;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+  }
+  header h1 {
+    font-size: 2.4em;
+    margin-bottom: 12px;
+    font-weight: 700;
+  }
+  header p {
+    font-size: 1.1em;
+    opacity: 0.95;
+  }
+  .pipeline {
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+  .pipeline h2 {
+    font-size: 1.4em;
+    color: #667eea;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: center;
+    justify-content: center;
+  }
+  .flow-step {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 18px 24px;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 160px;
+    font-weight: 600;
+    font-size: 0.95em;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+    transition: transform 0.3s;
+  }
+  .flow-step:hover { transform: translateY(-4px); }
+  .flow-step .num {
+    display: inline-block;
+    background: rgba(255,255,255,0.3);
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    border-radius: 50%;
+    margin-bottom: 6px;
+    font-size: 0.85em;
+  }
+  .flow-arrow {
+    font-size: 2em;
+    color: #cbd5e0;
+    margin: 0 4px;
+  }
+  section.module {
+    background: white;
+    border-radius: 16px;
+    padding: 36px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    border-left: 4px solid #667eea;
+  }
+  .module-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #edf2f7;
+  }
+  .module-num {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.2em;
+    flex-shrink: 0;
+  }
+  .module-header h2 {
+    font-size: 1.4em;
+    color: #2d3748;
+  }
+  .module-body p {
+    margin-bottom: 14px;
+    color: #4a5568;
+  }
+  .module-body .desc {
+    background: #f7fafc;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border-left: 3px solid #667eea;
+  }
+  .module-body .desc strong {
+    color: #667eea;
+  }
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .tag {
+    background: #ebf4ff;
+    color: #5a67d8;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 500;
+  }
+  .tag.green { background: #c6f6d5; color: #22543d; }
+  .tag.orange { background: #feebc8; color: #744210; }
+  .tag.pink { background: #fed7e2; color: #742a43; }
+  pre {
+    background: #1a202c;
+    color: #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 0.88em;
+    line-height: 1.6;
+    margin: 20px 0;
+  }
+  pre .key { color: #805ad5; }
+  pre .str { color: #48bb78; }
+  pre .num { color: #f6ad55; }
+  pre .com { color: #718096; font-style: italic; }
+  pre .fn { color: #63b3ed; }
+  pre .var { color: #f687b3; }
+  .code-label {
+    display: inline-block;
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 4px 12px;
+    border-radius: 6px 6px 0 0;
+    font-size: 0.75em;
+    font-family: monospace;
+    margin-bottom: -20px;
+    position: relative;
+  }
+  .output-box {
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-family: 'SF Mono', monospace;
+    font-size: 0.88em;
+    color: #22543d;
+  }
+  .output-box::before {
+    content: '📊 输出示例';
+    display: block;
+    color: #276749;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-family: inherit;
+  }
+  .arrow-down {
+    text-align: center;
+    font-size: 2em;
+    color: #cbd5e0;
+    margin: 8px 0;
+  }
+  .highlight {
+    background: linear-gradient(120deg, #e6f4ff 0%, #f0fff4 100%);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #2b6cb0;
+    font-weight: 500;
+  }
+  .footer {
+    text-align: center;
+    color: #a0aec0;
+    padding: 30px;
+    font-size: 0.9em;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    header { padding: 40px 24px; }
+    header h1 { font-size: 1.6em; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>🏨 酒店推荐系统</h1>
+    <p>基于内容的推荐引擎 · TF-IDF 文本向量化 · 余弦相似度匹配</p>
+    <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">代码文件：hotel_rec.py &nbsp;|&nbsp; 数据源：Seattle_Hotels.csv</p>
+  </header>
+
+  <!-- 流程图 -->
+  <div class="pipeline">
+    <h2>🔄 代码执行流程</h2>
+    <div class="flow">
+      <div class="flow-step"><div class="num">1</div>加载数据<br>CSV → DataFrame</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="num">2</div>数据探索<br>查看酒店信息</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="num">3</div>停用词构建<br>英文停用词表</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="num">4</div>词频统计<br>Top-N 关键词</div>
+    </div>
+    <div class="arrow-down">↓</div>
+    <div class="flow">
+      <div class="flow-step"><div class="num">5</div>文本清洗<br>正则+停用词过滤</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="num">6</div>TF-IDF<br>文本向量化</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="num">7</div>相似度计算<br>cosine_similarity</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="num">8</div>推荐生成<br>Top-10 相似酒店</div>
+    </div>
+  </div>
+
+  <!-- 模块1 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">1</div>
+      <h2>数据加载与探索</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>从 CSV 文件中加载西雅图酒店数据，查看数据结构和样本内容。
+      </div>
+      <div class="tags">
+        <span class="tag">pandas.read_csv</span>
+        <span class="tag">DataFrame.head()</span>
+        <span class="tag green">数据探索</span>
+      </div>
+
+      <div class="code-label">hotel_rec.py 第10-13行</div>
+<pre><span class="key">import</span> pandas <span class="key">as</span> pd
+
+pd.options.display.max_columns = <span class="num">30</span>
+df = pd.read_csv(<span class="str">'Seattle_Hotels.csv'</span>, encoding=<span class="str">"latin-1"</span>)
+<span class="fn">print</span>(df.head())
+<span class="fn">print</span>(<span class="str">'数据集中的酒店个数：'</span>, <span class="fn">len</span>(df))</pre>
+
+      <div class="output-box">
+        数据集中的酒店个数： 352<br>
+        列字段：name, desc, city, state, country, ...<br>
+        每个酒店包含名称、描述、位置等信息
+      </div>
+    </div>
+  </section>
+
+  <!-- 模块2 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">2</div>
+      <h2>构建英文停用词列表</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>手动定义一个包含常见英文停用词的集合，用于后续文本清洗阶段剔除无意义词汇。
+      </div>
+      <div class="tags">
+        <span class="tag">NLP 预处理</span>
+        <span class="tag orange">自定义停用词表</span>
+        <span class="tag">集合数据结构</span>
+      </div>
+
+      <div class="code-label">hotel_rec.py 第16-30行</div>
+<pre>ENGLISH_STOPWORDS = {
+    <span class="str">'i'</span>, <span class="str">'me'</span>, <span class="str">'my'</span>, <span class="str">'we'</span>, <span class="str">'our'</span>,
+    <span class="str">'the'</span>, <span class="str">'and'</span>, <span class="str">'or'</span>, <span class="str">'but'</span>,
+    <span class="str">'is'</span>, <span class="str">'are'</span>, <span class="str">'was'</span>, <span class="str">'were'</span>,
+    <span class="str">'a'</span>, <span class="str">'an'</span>, <span class="str">'of'</span>, <span class="str">'at'</span>,
+    <span class="com"># ... 更多停用词</span>
+    <span class="str">'wouldn'</span>, <span class="str">'wouldn't'</span>
+}</pre>
+
+      <p>停用词包括：代词 (I, you, he...)、冠词 (a, an, the)、介词 (of, at, by...)、连词 (and, or, but...) 等。</p>
+    </div>
+  </section>
+
+  <!-- 模块3 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">3</div>
+      <h2>词频统计 - 提取 Top-N 关键词</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>使用 CountVectorizer 统计酒店描述文本中的高频词汇，了解语料库的主要特征。
+      </div>
+      <div class="tags">
+        <span class="tag">CountVectorizer</span>
+        <span class="tag">N-gram</span>
+        <span class="tag pink">词频分析</span>
+      </div>
+
+      <div class="code-label">hotel_rec.py 第41-60行</div>
+<pre><span class="key">def</span> <span class="fn">get_top_n_words</span>(corpus, n=<span class="num">1</span>, k=<span class="key">None</span>):
+    <span class="str">"""获取 n-gram 特征中词频最高的 Top-K 个词"""</span>
+    vec = CountVectorizer(
+        ngram_range=(n, n),                     <span class="com"># 设置 n-gram 范围</span>
+        stop_words=<span class="fn">list</span>(ENGLISH_STOPWORDS)  <span class="com"># 使用停用词</span>
+    ).fit(corpus)
+    bag_of_words = vec.transform(corpus)        <span class="com"># 生成词频矩阵</span>
+    sum_words = bag_of_words.<span class="fn">sum</span>(axis=<span class="num">0</span>)
+    words_freq = [(word, sum_words[<span class="num">0</span>, idx])
+                  <span class="key">for</span> word, idx <span class="key">in</span> vec.vocabulary_.items()]
+    words_freq = <span class="fn">sorted</span>(words_freq, key=<span class="key">lambda</span> x: x[<span class="num">1</span>], reverse=<span class="key">True</span>)
+    <span class="key">return</span> words_freq[:k]
+
+<span class="com"># 获取 3-gram 的 Top-20 高频短语</span>
+common_words = <span class="fn">get_top_n_words</span>(df[<span class="str">'desc'</span>], n=<span class="num">3</span>, k=<span class="num">20</span>)</pre>
+
+      <div class="output-box">
+        Top-3gram 高频短语示例：<br>
+        • "free wifi" (高频出现)<br>
+        • "high speed internet"<br>
+        • "non smoking"<br>
+        • "breakfast included"<br>
+        • "fitness center"
+      </div>
+    </div>
+  </section>
+
+  <!-- 模块4 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">4</div>
+      <h2>文本预处理 - 清洗与规范化</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>对酒店描述文本进行四步清洗，生成可供 TF-IDF 处理的规范化文本。
+      </div>
+      <div class="tags">
+        <span class="tag">文本清洗</span>
+        <span class="tag">正则表达式</span>
+        <span class="tag orange">小写化</span>
+        <span class="tag orange">停用词过滤</span>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <p><strong>🔹 清洗步骤：</strong></p>
+          <p>① <span class="highlight">全部小写</span> — 统一文本格式<br>
+             ② <span class="highlight">替换标点</span> — 标点符号替换为空格<br>
+             ③ <span class="highlight">移除非法字符</span> — 只保留字母数字<br>
+             ④ <span class="highlight">过滤停用词</span> — 移除无意义词汇</p>
+        </div>
+        <div>
+          <div class="code-label">hotel_rec.py 第63-79行</div>
+<pre>REPLACE_BY_SPACE = re.compile(<span class="str">'[/(){}[\]|@,;]'</span>)
+BAD_SYMBOLS = re.compile(<span class="str">'[^0-9a-z #+_]'</span>)
+
+<span class="key">def</span> <span class="fn">clean_text</span>(text):
+    text = text.<span class="fn">lower</span>()()                  <span class="com"># 步骤1: 小写</span>
+    text = REPLACE_BY_SPACE.sub(<span class="str">' '</span>, text) <span class="com"># 步骤2: 替换标点</span>
+    text = BAD_SYMBOLS.sub(<span class="str">''</span>, text)        <span class="com"># 步骤3: 移除非法</span>
+    text = <span class="str">' '</span>.join(
+        w <span class="key">for</span> w <span class="key">in</span> text.<span class="fn">split</span>()
+        <span class="key">if</span> w <span class="key">not in</span> STOPWORDS
+    )                                                        <span class="com"># 步骤4: 去停用词</span>
+    <span class="key">return</span> text
+
+df[<span class="str">'desc_clean'</span>] = df[<span class="str">'desc'</span>].<span class="fn">apply</span>(clean_text)</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 模块5 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">5</div>
+      <h2>TF-IDF 文本向量化</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>使用 TF-IDF (Term Frequency-Inverse Document Frequency) 将酒店描述文本转换为数值向量，捕捉关键词的重要性权重。
+      </div>
+      <div class="tags">
+        <span class="tag">TfidfVectorizer</span>
+        <span class="tag">文本向量化</span>
+        <span class="tag pink">NLP 核心</span>
+      </div>
+
+      <div class="code-label">hotel_rec.py 第83-93行</div>
+<pre>df.set_index(<span class="str">'name'</span>, inplace=<span class="key">True</span>)
+
+tf = TfidfVectorizer(
+    analyzer=<span class="str">'word'</span>,           <span class="com"># 按词分析</span>
+    ngram_range=(<span class="num">1</span>, <span class="num">3</span>),      <span class="com"># 1-gram 到 3-gram</span>
+    min_df=<span class="num">0.01</span>,               <span class="com"># 最低文档频率</span>
+    stop_words=<span class="fn">list</span>(ENGLISH_STOPWORDS)
+)
+
+tfidf_matrix = tf.fit_transform(df[<span class="str">'desc_clean'</span>])
+<span class="fn">print</span>(<span class="fn">len</span>(tf.get_feature_names_out()))  <span class="com"># 输出特征数量</span></pre>
+
+      <p><strong>TF-IDF 原理：</strong></p>
+      <p>
+        <span class="highlight">TF</span>（词频）：某个词在文档中出现的次数<br>
+        <span class="highlight">IDF</span>（逆文档频率）：计算词的稀有程度，越稀有权重越高<br>
+        <span class="highlight">TF-IDF = TF × IDF</span>：突出重要关键词，压制常见词汇
+      </p>
+
+      <div class="output-box">
+        TF-IDF 矩阵形状: (352, N)<br>
+        特征数量: 数百个（1-gram + 2-gram + 3-gram）<br>
+        每个酒店 → 一个稀疏的高维向量
+      </div>
+    </div>
+  </section>
+
+  <!-- 模块6 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">6</div>
+      <h2>计算余弦相似度矩阵</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>基于 TF-IDF 向量计算酒店两两之间的余弦相似度，构建相似度矩阵。
+      </div>
+      <div class="tags">
+        <span class="tag">cosine_similarity</span>
+        <span class="tag">linear_kernel</span>
+        <span class="tag green">相似度计算</span>
+      </div>
+
+      <div class="code-label">hotel_rec.py 第95-98行</div>
+<pre><span class="key">from</span> sklearn.metrics.pairwise <span class="key">import</span> linear_kernel
+
+cosine_similarities = <span class="fn">linear_kernel</span>(tfidf_matrix, tfidf_matrix)
+<span class="fn">print</span>(cosine_similarities.shape)  <span class="com"># (352, 352)</span></pre>
+
+      <p><strong>余弦相似度含义：</strong></p>
+      <p>
+        对两个向量 A、B：<br>
+        <code>cos_sim(A, B) = (A · B) / (|A| × |B|)</code><br>
+        取值范围 [0, 1]，值越大表示两个酒店描述越相似。
+      </p>
+
+      <div class="output-box">
+        相似度矩阵: 352 × 352<br>
+        对角线值 = 1.0（自身完全相似）<br>
+        非对角线值在 [0, 1) 之间
+      </div>
+    </div>
+  </section>
+
+  <!-- 模块7 -->
+  <section class="module">
+    <div class="module-header">
+      <div class="module-num">7</div>
+      <h2>生成推荐结果</h2>
+    </div>
+    <div class="module-body">
+      <div class="desc">
+        <strong>目标：</strong>输入一个酒店名称，基于相似度矩阵返回最相似的 Top-10 酒店。
+      </div>
+      <div class="tags">
+        <span class="tag">推荐函数</span>
+        <span class="tag orange">Top-K 排序</span>
+        <span class="tag pink">核心逻辑</span>
+      </div>
+
+      <div class="code-label">hotel_rec.py 第101-116行</div>
+<pre><span class="key">def</span> <span class="fn">recommendations</span>(name, cosine_similarities=cosine_similarities):
+    recommended_hotels = []
+    idx = indices[indices == name].index[<span class="num">0</span>]  <span class="com"># 找到酒店索引</span>
+    score_series = pd.Series(cosine_similarities[idx])
+                     .<span class="fn">sort_values</span>(ascending=<span class="key">False</span>)  <span class="com"># 降序排列</span>
+    top_10_indexes = <span class="fn">list</span>(score_series.iloc[<span class="num">1</span>:<span class="num">11</span>].index)  <span class="com"># 排除自身</span>
+    <span class="key">for</span> i <span class="key">in</span> top_10_indexes:
+        recommended_hotels.<span class="fn">append</span>(<span class="fn">list</span>(df.index)[i])
+    <span class="key">return</span> recommended_hotels
+
+<span class="fn">print</span>(<span class="fn">recommendations</span>(<span class="str">'Hilton Seattle Airport &amp; Conference Center'</span>))
+<span class="fn">print</span>(<span class="fn">recommendations</span>(<span class="str">'The Bacon Mansion Bed and Breakfast'</span>))</pre>
+
+      <div class="output-box">
+        输入: "Hilton Seattle Airport & Conference Center"<br>
+        推荐 Top-10:<br>
+        &nbsp;&nbsp;1. DoubleTree by Hilton Hotel Seattle Airport<br>
+        &nbsp;&nbsp;2. Seattle Airport Marriott<br>
+        &nbsp;&nbsp;3. Holiday Inn Express Seattle City Center<br>
+        &nbsp;&nbsp;4. ... 其他相似酒店
+      </div>
+    </div>
+  </section>
+
+  <!-- 核心公式 -->
+  <section class="module" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-left: none;">
+    <div class="module-header" style="border-color: rgba(255,255,255,0.3);">
+      <div class="module-num" style="background: rgba(255,255,255,0.2);">💡</div>
+      <h2 style="color: white;">核心算法总结</h2>
+    </div>
+    <div class="module-body">
+      <p style="color: white; margin-bottom: 16px;">
+        这是一个典型的 <strong style="color: #ffd700;">基于内容的推荐系统</strong>（Content-Based Filtering），核心公式如下：
+      </p>
+      <pre style="background: rgba(0,0,0,0.3); color: white;">
+<span class="com"># 步骤1: 文本 → 向量 (TF-IDF)</span>
+vector = TFIDF(hotel_description)
+
+<span class="com"># 步骤2: 计算酒店间相似度</span>
+similarity[i][j] = cos(vector_i, vector_j)
+
+<span class="com"># 步骤3: 取相似度最高的 Top-K</span>
+recommendations = sort_by_similarity(hotel, top_k=10)
+      </pre>
+      <p style="color: rgba(255,255,255,0.85); margin-top: 12px;">
+        <strong>优势：</strong>无需用户行为数据，仅依赖物品自身属性即可实现推荐，适合新项目冷启动场景。
+      </p>
+    </div>
+  </section>
+
+  <div class="footer">
+    🏨 Hotel Recommendation System · TF-IDF + Cosine Similarity · 代码逻辑梳理文档
+  </div>
+
+</div>
+</body>
+</html>
